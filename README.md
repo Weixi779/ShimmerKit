@@ -17,4 +17,4 @@ struct SkeletonRow: View {
 }
 ```
 
-The `shimmer` modifier feeds view size and time into the Metal `shimmer` shader for a basic effect. More configuration hooks will be added later.
+The `shimmer` modifier feeds view size and time into the Metal `shimmer` shader. You can pass `ShimmerAlphaConfig` to tweak direction, band width, alpha endpoints, highlight strength, gamma, and duration.

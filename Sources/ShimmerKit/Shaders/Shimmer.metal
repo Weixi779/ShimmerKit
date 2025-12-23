@@ -19,27 +19,34 @@ half4 shimmer(
     float2 position,   // Current pixel position
     half4 color,       // Source color from view content
     float2 size,       // Render area size
-    float time         // Time driven externally
+    float time,        // Time driven externally
+    float2 bandDirection, // Light band direction (normalized upstream)
+    float bandWidth,       // Band width in UV space
+    float highlightStrength, // Mix toward white, controls perceived brightness
+    float backgroundAlpha,   // Alpha outside the highlight
+    float bandAlpha,         // Alpha at the highlight center
+    float gamma,             // Perceptual correction
+    float duration           // Total animation duration (seconds)
 ) {
     // Early exit for invalid inputs
     if (size.x <= 0.0 || size.y <= 0.0 || color.a <= 0.0) {
         return color;
     }
 
-    // MARK: - Parameters (to be driven by uniforms later)
-    float2 bandDirection = normalize(float2(1.0, 0.25)); // Light band direction
-    float bandWidth = 0.35;   // Band width in UV space
-    float brightness = 0.15; // Highlight boost toward white
-    float backgroundAlpha = 0.35; // Alpha outside the highlight
-    float bandAlpha = 1.0;   // Alpha at the highlight center
-    float gamma = 2.2;       // Perceptual correction
+    // MARK: - Normalize and clamp inputs
+    bandDirection = normalize(bandDirection);
+    bandWidth = max(bandWidth, 0.0001);
+    highlightStrength = clamp(highlightStrength, 0.0, 1.0);
+    backgroundAlpha = clamp(backgroundAlpha, 0.0, 1.0);
+    bandAlpha = clamp(bandAlpha, 0.0, 1.0);
+    gamma = max(gamma, 0.0001);
+    duration = max(duration, 0.0001);
 
     // MARK: - UV normalization
     float2 uv = position / size;
     float projectionOnBand = dot(uv, bandDirection); // Projection on shimmer direction
 
     // MARK: - Animation timing (soft ease)
-    float duration = 1.5;                // Total duration (seconds)
     float baseT = fract(time / duration);
     float t = smoothstep(0.0, 1.0, baseT);
     float overscan = 1.0 + bandWidth * 2.0; // Overscan so the band slides fully in/out
@@ -49,7 +56,8 @@ half4 shimmer(
     float weight = gaussianBand(projectionOnBand, bandCenter, bandWidth); // ∈ [0,1]
 
     // MARK: - Blend toward white + gamma correction
-    half3 rgb = mix(color.rgb, half3(1.0), half(weight * brightness));
+    float blend = clamp(weight * highlightStrength, 0.0, 1.0);
+    half3 rgb = mix(color.rgb, half3(1.0), half(blend));
     rgb = gammaCorrect(rgb, gamma);
 
     // MARK: - Alpha blend
